@@ -1,0 +1,78 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.store.name }}-wp
+  labels:
+    app: {{ .Values.store.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Values.store.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.store.name }}
+    spec:
+      containers:
+        - name: wordpress
+          image: {{ .Values.wordpress.image }}
+          # NEW: Readiness Probe (Checks if port 80 is responding)
+          readinessProbe:
+            httpGet:
+              path: /wp-admin/install.php
+              port: 80
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          # NEW: Liveness Probe (Restarts container if it freezes)
+          livenessProbe:
+            tcpSocket:
+              port: 80
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          env:
+            - name: WORDPRESS_DB_HOST
+              value: "127.0.0.1"
+            - name: WORDPRESS_DB_USER
+              value: {{ .Values.mysql.user }}
+            - name: WORDPRESS_DB_NAME
+              value: {{ .Values.mysql.dbName }}
+            # SECURE: Read from Secret
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.store.name }}-secrets
+                  key: mysql-password
+          ports:
+            - containerPort: 80
+        
+        - name: mysql
+          image: {{ .Values.mysql.image }}
+          env:
+            - name: MYSQL_DATABASE
+              value: {{ .Values.mysql.dbName }}
+            - name: MYSQL_USER
+              value: {{ .Values.mysql.user }}
+            # SECURE: Read from Secret
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.store.name }}-secrets
+                  key: mysql-root-password
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.store.name }}-secrets
+                  key: mysql-password
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql
+      
+      volumes:
+        - name: mysql-persistent-storage
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.store.name }}-pvc
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

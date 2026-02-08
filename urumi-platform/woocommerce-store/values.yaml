@@ -1,0 +1,27 @@
+# values.yaml
+store:
+  name: "default-store"
+  id: "store-001" 
+
+wordpress:
+  image: wordpress:6.4-apache
+  username: "admin"
+  password: "password123" 
+  email: "admin@example.com"
+  
+mysql:
+  image: mysql:5.7
+  rootPassword: "rootpassword"
+  dbName: "wordpress"
+  user: "wp_user"
+  password: "wp_password"
+
+ingress:
+  enabled: true
+  host: "store-001.localhost"
+
+persistence:
+  enabled: true
+  size: 1Gi
+  # "standard" works on Kind/Minikube. On AWS/Cloud, this would be "gp2".
+  storageClass: "standard"
